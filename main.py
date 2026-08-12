@@ -47,3 +47,19 @@ def create_task(task: Create_task):
         tasks.append(new_task)
         return {"message": "Created ", "task": new_task}
 
+@app.put("/tasks/{id}")
+def update_task(id: str, task: Create_task):
+    for t in tasks:
+        if t.id == id:
+            t.title = task.title
+            t.done = task.done
+            return {"message": "Updated", "task": t}
+    raise HTTPException(status_code=404, detail="Task not found")
+
+@app.delete("/tasks/{id}", status_code=204)
+def delete_task(id: str):
+    for t in tasks:
+        if t.id == id:
+            tasks.remove(t)
+            return None
+    raise HTTPException(status_code=404, detail="Task not found")
