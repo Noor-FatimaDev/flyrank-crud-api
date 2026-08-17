@@ -1,5 +1,7 @@
 from fastapi import FastAPI, HTTPException
+from contextlib import asynccontextmanager
 from pydantic import BaseModel
+from database import init_db
 
 class Create_task(BaseModel):
     title: str
@@ -10,7 +12,12 @@ class Task(BaseModel):
     title: str
     done: bool=False
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 tasks = [
         Task(id="1", title="Task 1", done=False),
@@ -54,7 +61,7 @@ def update_task(id: str, task: Create_task):
             t.title = task.title
             t.done = task.done
             return {"message": "Updated", "task": t}
-    raise HTTPException(status_code=404, detail="Task not found")
+    raise HTTPException(status_code=404, detail="Task not found") 
 
 @app.delete("/tasks/{id}", status_code=204)
 def delete_task(id: str):
