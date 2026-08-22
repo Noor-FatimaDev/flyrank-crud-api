@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
-from database import init_db
+from database import get_connection, init_db
 
 class Create_task(BaseModel):
     title: str
@@ -35,15 +35,28 @@ def check_health():
 
 @app.get("/tasks")
 def get_tasks():
+    conn = get_connection()
+    rows = conn.execute("SELECT * FROM tasks").fetchall()
+    tasks = []
+    
+    for row in rows:
+       tasks.append (Task(id=str(row["id"]), title=row["title"], done=bool(row["done"])))
+       
+    conn.close()
     return tasks
-
 
 @app.get("/tasks/{id}")
 def get_task(id: str):
-    for task in tasks:
-        if task.id == id:
-            return task
-    raise HTTPException(status_code=404, detail="Task not found")
+    conn = get_connection()
+    row = conn.execute("SELECT * FROM tasks WHERE id = ?", (id,)).fetchone()
+    
+    if row:
+        task = Task(id=str(row["id"]), title=row["title"], done=bool(row["done"]))
+        conn.close()
+        return task
+    else:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Task not found")
 
 @app.post("/tasks", status_code=201)
 def create_task(task: Create_task):
