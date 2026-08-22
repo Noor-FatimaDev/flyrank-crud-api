@@ -61,7 +61,7 @@ def get_task(id: str):
 @app.post("/tasks", status_code=201)
 def create_task(task: Create_task):
     conn = get_connection()
-    if task.title == "":
+    if task.title.strip() == "":
         conn.close()
         raise HTTPException(status_code=400, detail="Title cannot be empty")
     else:
