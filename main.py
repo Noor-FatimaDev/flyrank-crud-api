@@ -60,12 +60,16 @@ def get_task(id: str):
 
 @app.post("/tasks", status_code=201)
 def create_task(task: Create_task):
+    conn = get_connection()
     if task.title == "":
+        conn.close()
         raise HTTPException(status_code=400, detail="Title cannot be empty")
     else:
-        new_task = Task(id=str(max(int(t.id) for t in tasks) + 1), title=task.title, done=task.done)
-        tasks.append(new_task)
-        return {"message": "Created ", "task": new_task}
+        cursor = conn.execute("INSERT INTO tasks (title, done) VALUES (?, ?)", (task.title, task.done))
+        new_id = cursor.lastrowid  
+        conn.commit()
+        conn.close()
+        return {"message": "Created", "task": Task(id=str(new_id), title=task.title, done=task.done)}
 
 @app.put("/tasks/{id}")
 def update_task(id: str, task: Create_task):
