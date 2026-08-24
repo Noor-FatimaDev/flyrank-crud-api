@@ -18,12 +18,6 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(lifespan=lifespan)
-
-tasks = [
-        Task(id="1", title="Task 1", done=False),
-        Task(id="2", title="Task 2", done=False),
-        Task(id="3", title="Task 3", done=False)
-        ]
  
 @app.get("/")
 def read_something():
@@ -73,17 +67,31 @@ def create_task(task: Create_task):
 
 @app.put("/tasks/{id}")
 def update_task(id: str, task: Create_task):
-    for t in tasks:
-        if t.id == id:
-            t.title = task.title
-            t.done = task.done
-            return {"message": "Updated", "task": t}
-    raise HTTPException(status_code=404, detail="Task not found") 
+    conn = get_connection()
+    
+    if task.title.strip() == "":
+        conn.close()
+        raise HTTPException(status_code=400, detail="Title cannot be empty")
+        
+    cursor = conn.execute("UPDATE tasks SET title = ?, done = ? WHERE id = ?", (task.title, task.done, id))
+    
+    if cursor.rowcount == 0:
+                conn.close()
+                raise HTTPException(status_code=404, detail="Task not found")
+            
+    conn.commit()
+    conn.close()
+    return {"message": "Updated", "task": Task(id=id, title=task.title, done=task.done)}
 
 @app.delete("/tasks/{id}", status_code=204)
 def delete_task(id: str):
-    for t in tasks:
-        if t.id == id:
-            tasks.remove(t)
-            return None
-    raise HTTPException(status_code=404, detail="Task not found")
+    conn = get_connection()
+    cursor = conn.execute("DELETE FROM tasks WHERE id = ?", (id,))
+    
+    if cursor.rowcount == 0:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    conn.commit()
+    conn.close()
+    return None
