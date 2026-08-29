@@ -1,16 +1,8 @@
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
+from models import Task, Create_task
 from database import get_all_tasks, get_task_by_id, init_db, insert_task, update_task as db_update_task, delete_task as db_delete_task
-
-class Create_task(BaseModel):
-    title: str
-    done: bool=False
-
-class Task(BaseModel):
-    id: str
-    title: str
-    done: bool=False
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

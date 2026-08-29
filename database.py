@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from models import Task
 import sqlite3
 
 data_base= "tasks.db"
@@ -29,11 +30,6 @@ def init_db():
                          )
    conn.commit()
    conn.close()
-
-class Task(BaseModel):
-    id: str
-    title: str
-    done: bool = False
 
 def get_all_tasks():
     conn = get_connection()
