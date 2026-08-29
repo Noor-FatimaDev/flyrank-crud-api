@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
-from database import get_connection, init_db
+from database import get_all_tasks, get_task_by_id, init_db, insert_task, update_task as db_update_task, delete_task as db_delete_task
 
 class Create_task(BaseModel):
     title: str
@@ -29,69 +29,36 @@ def check_health():
 
 @app.get("/tasks")
 def get_tasks():
-    conn = get_connection()
-    rows = conn.execute("SELECT * FROM tasks").fetchall()
-    tasks = []
-    
-    for row in rows:
-       tasks.append (Task(id=str(row["id"]), title=row["title"], done=bool(row["done"])))
-       
-    conn.close()
-    return tasks
+    return get_all_tasks()
 
 @app.get("/tasks/{id}")
 def get_task(id: str):
-    conn = get_connection()
-    row = conn.execute("SELECT * FROM tasks WHERE id = ?", (id,)).fetchone()
-    
-    if row:
-        task = Task(id=str(row["id"]), title=row["title"], done=bool(row["done"]))
-        conn.close()
-        return task
-    else:
-        conn.close()
+    task = get_task_by_id(id)
+    if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
+    return task
 
 @app.post("/tasks", status_code=201)
 def create_task(task: Create_task):
-    conn = get_connection()
     if task.title.strip() == "":
-        conn.close()
         raise HTTPException(status_code=400, detail="Title cannot be empty")
-    else:
-        cursor = conn.execute("INSERT INTO tasks (title, done) VALUES (?, ?)", (task.title, task.done))
-        new_id = cursor.lastrowid  
-        conn.commit()
-        conn.close()
-        return {"message": "Created", "task": Task(id=str(new_id), title=task.title, done=task.done)}
+    new_task = insert_task(task.title, task.done)
+    return {"message": "Created", "task": new_task}
 
 @app.put("/tasks/{id}")
 def update_task(id: str, task: Create_task):
-    conn = get_connection()
-    
     if task.title.strip() == "":
-        conn.close()
         raise HTTPException(status_code=400, detail="Title cannot be empty")
-        
-    cursor = conn.execute("UPDATE tasks SET title = ?, done = ? WHERE id = ?", (task.title, task.done, id))
     
-    if cursor.rowcount == 0:
-                conn.close()
-                raise HTTPException(status_code=404, detail="Task not found")
-            
-    conn.commit()
-    conn.close()
+    success = db_update_task(id, task.title, task.done)
+    if not success:
+        raise HTTPException(status_code=404, detail="Task not found")
+        
     return {"message": "Updated", "task": Task(id=id, title=task.title, done=task.done)}
 
 @app.delete("/tasks/{id}", status_code=204)
 def delete_task(id: str):
-    conn = get_connection()
-    cursor = conn.execute("DELETE FROM tasks WHERE id = ?", (id,))
-    
-    if cursor.rowcount == 0:
-        conn.close()
+    success = db_delete_task(id)
+    if not success:
         raise HTTPException(status_code=404, detail="Task not found")
-    
-    conn.commit()
-    conn.close()
     return None
